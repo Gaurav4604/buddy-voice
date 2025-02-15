@@ -19,13 +19,7 @@ parser.add_argument(
     default="",
     required=False,
 )
-parser.add_argument(
-    "--inference_framework",
-    help="The inference framework to use (either 'onnx' or 'tflite'",
-    type=str,
-    default="onnx",
-    required=False,
-)
+
 
 args = parser.parse_args()
 
@@ -45,7 +39,7 @@ if args.model_path != "":
         wakeword_models=[args.model_path], inference_framework=args.inference_framework
     )
 else:
-    owwModel = Model(inference_framework=args.inference_framework)
+    owwModel = Model(inference_framework="onnx")
 
 n_models = len(owwModel.models.keys())
 
