@@ -3,6 +3,7 @@ from utils.output_utils import AudioOutputProcessor
 from utils.llm_utils import LLMProcessor
 from utils.drama_instruct import DRAMA_SYSTEM_PROMPT
 import argparse
+import time
 
 
 def main():
@@ -20,6 +21,12 @@ def main():
         "--system_prompt",
         default=DRAMA_SYSTEM_PROMPT,
         help="System prompt for the LLM",
+    )
+    parser.add_argument(
+        "--conversation_timeout",
+        type=float,
+        default=10.0,
+        help="Seconds to wait for follow-up speech before returning to wake word mode",
     )
     args = parser.parse_args()
 
@@ -43,20 +50,59 @@ def main():
 
     try:
         while True:
-            # Wait for wake word, record and transcribe
-            transcript = input_processor.listen_and_transcribe()
-
-            if not transcript:
+            # Wait for initial wake word
+            print("Waiting for wake word...")
+            if not input_processor.wait_for_wakeword():
                 continue
 
-            print(f"User said: '{transcript}'")
+            # Enter conversation mode loop
+            in_conversation = True
+            while in_conversation:
+                # Record and transcribe speech
+                print("Recording speech in conversation mode...")
+                recorded_audio = input_processor.record_with_vad()
 
-            # Process with LLM
-            response = llm_processor.chat(transcript)
-            print(f"Assistant response: '{response}'")
+                if recorded_audio.size == 0:
+                    print("No audio recorded. Ending conversation.")
+                    in_conversation = False
+                    continue
 
-            # Speak the response
-            output_processor.speak_text(response)
+                transcript = input_processor.transcribe_audio(recorded_audio)
+                if not transcript:
+                    print("Empty transcript. Ending conversation.")
+                    in_conversation = False
+                    continue
+
+                print(f"User said: '{transcript}'")
+
+                # Process with LLM
+                response = llm_processor.chat(transcript)
+                print(f"Assistant response: '{response}'")
+
+                # Speak the response
+                output_processor.speak_text(response)
+
+                # Wait for follow-up speech or timeout
+                print(
+                    f"Waiting {args.conversation_timeout} seconds for follow-up speech..."
+                )
+                start_wait_time = time.time()
+
+                # Check for voice activity
+                follow_up_audio = input_processor.record_with_vad(
+                    inactivity_sec=3,
+                    pre_speech_buffer_size=3,
+                    max_initial_wait=args.conversation_timeout,
+                )
+
+                # If no follow-up detected within timeout, exit conversation mode
+                if follow_up_audio.size == 0:
+                    print("No follow-up speech detected. Returning to wake word mode.")
+                    in_conversation = False
+                    input_processor.flush_mic_stream()
+                else:
+                    print("Follow-up speech detected. Continuing conversation...")
+                    # Process this recorded audio in the next loop iteration
 
     except KeyboardInterrupt:
         print("\nExiting by user request.")

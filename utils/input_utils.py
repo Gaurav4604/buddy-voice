@@ -88,7 +88,9 @@ class AudioInputProcessor:
                 self.owwModel.reset()
                 return True
 
-    def record_with_vad(self, inactivity_sec=3, pre_speech_buffer_size=3):
+    def record_with_vad(
+        self, inactivity_sec=3, pre_speech_buffer_size=3, max_initial_wait=10
+    ):
         """
         Record audio with voice activity detection, only keeping chunks with speech
         and a small buffer of audio before speech starts.
@@ -96,6 +98,7 @@ class AudioInputProcessor:
         Args:
             inactivity_sec (int): Seconds of silence before ending recording
             pre_speech_buffer_size (int): Number of chunks to keep before speech starts
+            max_initial_wait (float): Maximum seconds to wait for initial speech
         """
         recorded_chunks = []
         audio_buffer = deque(maxlen=20)  # Sliding window for VAD detection
@@ -160,10 +163,10 @@ class AudioInputProcessor:
 
                     # Check if we've been waiting too long for initial speech
                     if (
-                        time.time() - start_time > 10
-                    ):  # 10 sec max wait for initial speech
+                        time.time() - start_time > max_initial_wait
+                    ):  # configurable max wait for initial speech
                         print(
-                            "No initial speech detected for 10 seconds. Ending listening."
+                            f"No initial speech detected for {max_initial_wait} seconds. Ending listening."
                         )
                         return np.array([], dtype=np.int16)
 
