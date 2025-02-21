@@ -2,3 +2,6 @@ helpers
 helpers/**
 buddy-voice/**
 buddy-voice
+
+.env
+oauth.json
