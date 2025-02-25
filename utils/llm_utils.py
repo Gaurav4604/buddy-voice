@@ -1,7 +1,7 @@
 import os
 import json
 from ollama import Client  # assuming ollama is installed and configured
-from tools import play_search  # Register our tool
+from utils.tools import play_search
 
 # Ensure VLC’s DLLs are in the search path (adjust path as needed)
 os.add_dll_directory(r"C:\Program Files\VideoLAN\VLC")
@@ -25,7 +25,11 @@ class LLMProcessor:
         model = model or self.default_model
         self.history.append({"role": "user", "content": user_input})
         try:
-            response = self.client.chat(model=model, messages=self.history)
+            response = self.client.chat(
+                model=model,
+                messages=self.history,
+            )
+            print(response)
             assistant_reply = response.message.get(
                 "content", "Sorry, I did not understand that."
             )

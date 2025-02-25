@@ -1,21 +1,37 @@
 import os
 import time
-from ytmusicapi import YTMusic, OAuthCredentials
+import subprocess
+from ytmusicapi import YTMusic
 from yt_dlp import YoutubeDL
 import vlc
 
-# Ensure VLC’s DLLs can be found (adjust this path to your installation)
+
+def regenerate_vlc_cache():
+    """
+    Programmatically regenerates the VLC plugins cache by calling the
+    'vlc-cache-gen.exe' command with the plugins directory.
+    """
+    vlc_path = r"C:\Program Files\VideoLAN\VLC"
+    cache_gen_exe = os.path.join(vlc_path, "vlc-cache-gen.exe")
+    plugins_dir = os.path.join(vlc_path, "plugins")
+
+    # Build the command; note that the command must be run as administrator.
+    cmd = f'"{cache_gen_exe}" "{plugins_dir}"'
+    try:
+        subprocess.run(cmd, shell=True, check=True)
+        print("VLC plugins cache regenerated successfully.")
+    except subprocess.CalledProcessError as e:
+        print("Failed to regenerate VLC plugins cache:", e)
+
+
+# Regenerate VLC plugins cache before proceeding
+regenerate_vlc_cache()
+
+# Ensure VLC’s DLLs are found
 os.add_dll_directory(r"C:\Program Files\VideoLAN\VLC")
 
-# Set up ytmusicapi (ensure your oauth.json is properly configured)
-client_id = os.getenv("client_id")
-client_secret = os.getenv("client_secret")
-ytmusic = YTMusic(
-    "oauth.json",
-    oauth_credentials=OAuthCredentials(
-        client_id=client_id, client_secret=client_secret
-    ),
-)
+
+ytmusic = YTMusic("browser.json")
 
 # Options for yt-dlp to extract the best audio stream without downloading
 ydl_opts = {
@@ -61,6 +77,26 @@ def play_search(query: str) -> None:
     player.set_media(media)
     player.play()
 
-    # Optionally, wait until playback is finished
-    while player.is_playing():
+    # Allow VLC time to start playback
+    time.sleep(2)
+
+    # Wait until playback is finished
+    while True:
+        state = player.get_state()
+        if state == vlc.State.Ended:
+            print("Playback finished.")
+            break
+        elif state == vlc.State.Error:
+            print("Error during playback.")
+            break
         time.sleep(1)
+
+
+# Example usage:
+if __name__ == "__main__":
+    print(ytmusic.get_account_info())
+    while True:
+        search_term = input("Enter a song to search for (or type 'exit' to quit): ")
+        if search_term.lower() == "exit":
+            break
+        play_search(search_term)

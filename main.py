@@ -76,7 +76,7 @@ def main():
                 print(f"User said: '{transcript}'")
 
                 # Process with LLM
-                response = llm_processor.chat_and_auto_toolcall(transcript)
+                response = llm_processor.chat(transcript)
                 print(f"Assistant response: '{response}'")
 
                 # Speak the response
