@@ -1,10 +1,18 @@
 import os
 import json
-from ollama import Client  # assuming ollama is installed and configured
+import ollama
+from ollama import Client, ChatResponse  # assuming ollama is installed and configured
 from utils.tools import play_search
+from pydantic import BaseModel
+from pydantic.dataclasses import dataclass
 
 # Ensure VLC’s DLLs are in the search path (adjust path as needed)
 os.add_dll_directory(r"C:\Program Files\VideoLAN\VLC")
+
+
+# @dataclass(frozen=True)
+class TerminateConversation(BaseModel):
+    should_terminate_conversation: bool
 
 
 class LLMProcessor:
@@ -23,13 +31,38 @@ class LLMProcessor:
         Sends the user input to the LLM and returns the assistant's reply.
         """
         model = model or self.default_model
+
+        response = ollama.chat(
+            model=model,
+            messages=[
+                {
+                    "role": "user",
+                    "content": f"""check if this message suggests that the user whats to terminate the conversation
+                        <message>
+                            {user_input}
+                        </message>
+                    """,
+                }
+            ],
+            format=TerminateConversation.model_json_schema(),
+            options={"num_ctx": 1024},
+        )
+
+        terminate = TerminateConversation.model_validate_json(
+            response.message.content
+        ).should_terminate_conversation
+
+        if terminate:
+            return ""
+
         self.history.append({"role": "user", "content": user_input})
         try:
             response = self.client.chat(
                 model=model,
                 messages=self.history,
+                options={"num_ctx": 4096 if len(user_input) > 50 else 2048},
             )
-            print(response)
+
             assistant_reply = response.message.get(
                 "content", "Sorry, I did not understand that."
             )
@@ -40,43 +73,6 @@ class LLMProcessor:
             )
         self.history.append({"role": "assistant", "content": assistant_reply})
         return assistant_reply
-
-    def process_tool_command(self, command_payload: dict):
-        """
-        If the LLM output indicates a tool command, extract the tool name and its payload,
-        then call the corresponding function.
-        For example, if the payload is {"tool": "play_search", "query": "Never Gonna Give You Up"},
-        then we call play_search("Never Gonna Give You Up").
-        """
-        tool_name = command_payload.get("tool")
-        if tool_name in self.tools:
-            func = self.tools[tool_name]
-            # Assume that for play_search, the payload key is "query"
-            query = command_payload.get("query", "")
-            print(f"Invoking tool '{tool_name}' with query: {query}")
-            func(query)
-        else:
-            print(f"No registered tool named '{tool_name}'.")
-
-    def chat_and_auto_toolcall(self, user_input, model=None):
-        """
-        Sends a user input to the LLM and checks if the assistant's reply is a JSON payload
-        representing a tool command. If so, auto-invokes the corresponding tool.
-        Otherwise, returns the assistant's reply.
-        """
-        reply = self.chat(user_input, model=model)
-        try:
-            # Try parsing the assistant reply as JSON.
-            command_payload = json.loads(reply)
-            if isinstance(command_payload, dict) and "tool" in command_payload:
-                print("Assistant returned a tool command payload.")
-                self.process_tool_command(command_payload)
-                return f"Tool '{command_payload.get('tool')}' executed."
-            else:
-                return reply
-        except json.JSONDecodeError:
-            # If the reply isn't JSON, return it as normal.
-            return reply
 
     def get_history(self):
         return self.history.copy()

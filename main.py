@@ -48,64 +48,43 @@ def main():
     print(f"Say the wake word to begin. Using LLM: {args.llm}, Voice: {args.voice}")
     print("#" * 100)
 
+    wake_word_required = True
+
     try:
         while True:
-            # Wait for initial wake word
-            print("Waiting for wake word...")
-            if not input_processor.wait_for_wakeword():
+            if wake_word_required and not input_processor.wait_for_wakeword():
+                print("Waiting for wake word...")
                 continue
-
-            # Enter conversation mode loop
-            in_conversation = True
-            while in_conversation:
-                # Record and transcribe speech
+            else:
+                # conversation loop
                 print("Recording speech in conversation mode...")
-                recorded_audio = input_processor.record_with_vad()
-
+                recorded_audio = input_processor.record_with_vad(inactivity_sec=2)
                 if recorded_audio.size == 0:
                     print("No audio recorded. Ending conversation.")
-                    in_conversation = False
+                    wake_word_required = True
                     continue
 
+                # if data exists, use it to do transcription
                 transcript = input_processor.transcribe_audio(recorded_audio)
                 if not transcript:
                     print("Empty transcript. Ending conversation.")
-                    in_conversation = False
+                    wake_word_required = True
                     continue
 
                 print(f"User said: '{transcript}'")
-
-                # Process with LLM
                 response = llm_processor.chat(transcript)
-                print(f"Assistant response: '{response}'")
 
-                # Speak the response
+                if response == "":
+                    wake_word_required = True
+                    continue
+
+                print(f"Assistant response: '{response}'")
                 output_processor.speak_text(response)
 
-                # Wait for follow-up speech or timeout
-                print(
-                    f"Waiting {args.conversation_timeout} seconds for follow-up speech..."
-                )
-                start_wait_time = time.time()
-
-                # Check for voice activity
-                follow_up_audio = input_processor.record_with_vad(
-                    inactivity_sec=3,
-                    pre_speech_buffer_size=3,
-                    max_initial_wait=args.conversation_timeout,
-                )
-
-                # If no follow-up detected within timeout, exit conversation mode
-                if follow_up_audio.size == 0:
-                    print("No follow-up speech detected. Returning to wake word mode.")
-                    in_conversation = False
-                    input_processor.flush_mic_stream()
-                else:
-                    print("Follow-up speech detected. Continuing conversation...")
-                    # Process this recorded audio in the next loop iteration
+                wake_word_required = False
 
     except KeyboardInterrupt:
-        print("\nExiting by user request.")
+        print("User Program Termination")
     finally:
         print("Cleaning up resources...")
 

@@ -89,6 +89,12 @@ class AudioOutputProcessor:
 
     def speak_text(self, text, voice=None, speed=1, save=False):
         """Complete pipeline: generate, play, and optionally save audio for text"""
+
+        word_count = len(text.split())
+        speed = 1
+        if word_count > 30:
+            speed = 1.5
+
         segments = self.generate_audio(text, voice, speed)
         self.play_audio_segments(segments)
 
