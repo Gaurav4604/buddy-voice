@@ -2,12 +2,14 @@ import os
 import json
 import ollama
 from ollama import Client, ChatResponse  # assuming ollama is installed and configured
-from utils.tools import play_search
+from utils.tools import play_music
 from pydantic import BaseModel
-from pydantic.dataclasses import dataclass
 
 # Ensure VLC’s DLLs are in the search path (adjust path as needed)
 os.add_dll_directory(r"C:\Program Files\VideoLAN\VLC")
+
+
+REGISTERED_TOOLS = {"play_music": play_music}
 
 
 # @dataclass(frozen=True)
@@ -21,7 +23,7 @@ class LLMProcessor:
         self.client = Client(host=host)
         self.history = []
         # Register available tools in a dictionary:
-        self.tools = {"play_search": play_search}
+        self.tools = REGISTERED_TOOLS
 
     def reset_history(self):
         self.history = []
@@ -57,11 +59,21 @@ class LLMProcessor:
 
         self.history.append({"role": "user", "content": user_input})
         try:
-            response = self.client.chat(
+            response: ChatResponse = self.client.chat(
                 model=model,
                 messages=self.history,
                 options={"num_ctx": 4096 if len(user_input) > 50 else 2048},
+                tools=list(self.tools.values()),
             )
+
+            tool_calls = response.message.get("tool_calls", [])
+
+            print(response)
+
+            if tool_calls:
+                for tool_call in tool_calls:
+                    self.execute_tool_call(tool_call)
+                return "Tool call(s) executed."
 
             assistant_reply = response.message.get(
                 "content", "Sorry, I did not understand that."
@@ -73,6 +85,28 @@ class LLMProcessor:
             )
         self.history.append({"role": "assistant", "content": assistant_reply})
         return assistant_reply
+
+    def execute_tool_call(self, tool_call):
+        """
+        Execute a tool call from the assistant's response.
+        The tool_call is expected to have the structure:
+        ToolCall(function=Function(name='play_search', arguments={'query': 'song name'}))
+        """
+        try:
+            tool_name = tool_call.function.name
+            arguments = tool_call.function.arguments  # should be a dict
+        except AttributeError:
+            print("Invalid tool call structure.")
+            return
+
+        if tool_name in self.tools:
+            func = self.tools[tool_name]
+            print(f"Auto-executing tool '{tool_name}' with arguments: {arguments}")
+            # Call the function with the arguments unpacked
+            return func(**arguments)
+        else:
+            print(f"No registered tool named '{tool_name}'.")
+            return
 
     def get_history(self):
         return self.history.copy()

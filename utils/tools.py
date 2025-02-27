@@ -45,9 +45,9 @@ vlc_instance = vlc.Instance()
 player = vlc_instance.media_player_new()
 
 
-def play_search(query: str) -> None:
+def play_music(query: str) -> None:
     """
-    Search for a song matching 'query', and play the first result.
+    Search for the song user has requested, and play the first result.
     """
     # Search for songs; adjust filter/limit as needed
     results = ytmusic.search(query, filter="songs", limit=1)
@@ -99,4 +99,4 @@ if __name__ == "__main__":
         search_term = input("Enter a song to search for (or type 'exit' to quit): ")
         if search_term.lower() == "exit":
             break
-        play_search(search_term)
+        play_music(search_term)
