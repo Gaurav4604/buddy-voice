@@ -82,14 +82,19 @@ def play_music(query: str) -> None:
 
     # Wait until playback is finished
     while True:
-        state = player.get_state()
-        if state == vlc.State.Ended:
-            print("Playback finished.")
+        try:
+            state = player.get_state()
+            if state == vlc.State.Ended:
+                print("Playback finished.")
+                break
+            elif state == vlc.State.Error:
+                print("Error during playback.")
+                break
+            time.sleep(1)
+        except KeyboardInterrupt:
+            player.stop()
+            print("User Terminate")
             break
-        elif state == vlc.State.Error:
-            print("Error during playback.")
-            break
-        time.sleep(1)
 
 
 # Example usage:

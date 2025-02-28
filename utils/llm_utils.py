@@ -9,12 +9,31 @@ from pydantic import BaseModel
 os.add_dll_directory(r"C:\Program Files\VideoLAN\VLC")
 
 
+termination_message_check = """
+check if this message suggests that the user wants to terminate the conversation
+<message>
+    {}
+</message>
+"""
+
+play_music_check = """
+check if this message suggests that the user wants to play music
+<message>
+    {}
+</message>
+"""
+
+
 REGISTERED_TOOLS = {"play_music": play_music}
 
 
 # @dataclass(frozen=True)
 class TerminateConversation(BaseModel):
     should_terminate_conversation: bool
+
+
+class PlayMusic(BaseModel):
+    should_play_music: bool
 
 
 class LLMProcessor:
@@ -39,11 +58,7 @@ class LLMProcessor:
             messages=[
                 {
                     "role": "user",
-                    "content": f"""check if this message suggests that the user whats to terminate the conversation
-                        <message>
-                            {user_input}
-                        </message>
-                    """,
+                    "content": termination_message_check.format(user_input),
                 }
             ],
             format=TerminateConversation.model_json_schema(),
@@ -57,13 +72,37 @@ class LLMProcessor:
         if terminate:
             return ""
 
+        response = ollama.chat(
+            model=model,
+            messages=[
+                {
+                    "role": "user",
+                    "content": play_music_check.format(user_input),
+                }
+            ],
+            format=PlayMusic.model_json_schema(),
+            options={"num_ctx": 1024},
+        )
+
+        play_music = PlayMusic.model_validate_json(
+            response.message.content
+        ).should_play_music
+
+        llm_tools = []
+
+        if play_music:
+            llm_tools.append(REGISTERED_TOOLS["play_music"])
+
         self.history.append({"role": "user", "content": user_input})
         try:
             response: ChatResponse = self.client.chat(
                 model=model,
                 messages=self.history,
-                options={"num_ctx": 4096 if len(user_input) > 50 else 2048},
-                tools=list(self.tools.values()),
+                options={
+                    "num_ctx": 4096 if len(user_input) > 50 else 2048,
+                    "temperature": 0.1,
+                },
+                tools=llm_tools,
             )
 
             tool_calls = response.message.get("tool_calls", [])
@@ -73,7 +112,7 @@ class LLMProcessor:
             if tool_calls:
                 for tool_call in tool_calls:
                     self.execute_tool_call(tool_call)
-                return "Tool call(s) executed."
+                return "Tool call executed."
 
             assistant_reply = response.message.get(
                 "content", "Sorry, I did not understand that."
