@@ -107,8 +107,6 @@ class LLMProcessor:
 
             tool_calls = response.message.get("tool_calls", [])
 
-            print(response)
-
             if tool_calls:
                 for tool_call in tool_calls:
                     self.execute_tool_call(tool_call)
