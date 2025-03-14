@@ -1,9 +1,8 @@
-from utils.input_utils import AudioInputProcessor
-from utils.output_utils import AudioOutputProcessor
-from utils.llm_utils import LLMProcessor
-from utils.drama_instruct import DRAMA_SYSTEM_PROMPT
+from src.input_utils import AudioInputProcessor
+from src.output_utils import AudioOutputProcessor
+from src.llm_utils import LLMProcessor
+from src.drama_instruct import DRAMA_SYSTEM_PROMPT
 import argparse
-import time
 
 
 def main():

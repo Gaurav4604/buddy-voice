@@ -4,6 +4,15 @@ import subprocess
 from ytmusicapi import YTMusic
 from yt_dlp import YoutubeDL
 import vlc
+import cv2
+import time
+import ollama
+from ollama import Client
+from pydantic import BaseModel
+
+
+class ImageDescription(BaseModel):
+    description: str
 
 
 def regenerate_vlc_cache():
@@ -97,11 +106,88 @@ def play_music(query: str) -> None:
             break
 
 
+def capture_image_and_describe() -> str:
+    """
+    Use the front-facing camera to capture an image,
+    and describe what the image contains
+    """
+    # Open the default camera (device 0)
+    cap = cv2.VideoCapture(0)
+    if not cap.isOpened():
+        raise Exception("Could not open video device")
+
+    countdown = 5  # seconds
+    start_time = time.time()
+
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            continue  # Skip if frame read fails
+
+        # Calculate remaining time for the countdown
+        elapsed = time.time() - start_time
+        remaining = max(int(countdown - elapsed) + 1, 0)
+
+        # Overlay the countdown timer on the frame
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        cv2.putText(
+            frame, f"{remaining}", (50, 50), font, 1.5, (0, 0, 255), 4, cv2.LINE_AA
+        )
+
+        # Show the camera preview window
+        cv2.imshow("Camera Preview", frame)
+
+        # When countdown is complete, capture the image
+        if elapsed >= countdown:
+            # Optionally wait a tiny bit for a final frame update
+            time.sleep(0.1)
+            ret, frame = cap.read()
+            if not ret:
+                continue
+            cv2.imwrite("temp.jpg", frame)
+            break
+
+        # Allow early exit by pressing 'q'
+        if cv2.waitKey(1) & 0xFF == ord("q"):
+            cap.release()
+            cv2.destroyAllWindows()
+            return "Cancelled by user"
+
+    # Release the camera and close the preview window
+    cap.release()
+    cv2.destroyAllWindows()
+
+    # Send the captured image to Ollama for description
+    res = ollama.chat(
+        model="gemma3",
+        messages=[
+            {
+                "role": "user",
+                "content": "describe what is present in this image in 2 lines",
+                "images": ["temp.jpg"],
+            }
+        ],
+        options={"temperature": 0},
+        format=ImageDescription.model_json_schema(),
+    )
+
+    image_description = ImageDescription.model_validate_json(
+        res.message.content
+    ).description
+
+    # Delete the temporary image file
+    if os.path.exists("temp.jpg"):
+        os.remove("temp.jpg")
+
+    return f"The Image captured, has a description :{image_description}"
+
+
 # Example usage:
 if __name__ == "__main__":
-    print(ytmusic.get_account_info())
-    while True:
-        search_term = input("Enter a song to search for (or type 'exit' to quit): ")
-        if search_term.lower() == "exit":
-            break
-        play_music(search_term)
+    # print(ytmusic.get_account_info())
+    # while True:
+    #     search_term = input("Enter a song to search for (or type 'exit' to quit): ")
+    #     if search_term.lower() == "exit":
+    #         break
+    #     play_music(search_term)
+    print(capture_image_and_describe(""))
