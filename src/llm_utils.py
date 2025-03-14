@@ -1,7 +1,7 @@
 import os
 import ollama
 from ollama import Client, ChatResponse  # assuming ollama is installed and configured
-from tools import play_music, capture_image_and_describe
+from src.tools import play_music, capture_image_and_describe
 from pydantic import BaseModel
 
 # Ensure VLC’s DLLs are in the search path (adjust path as needed)
