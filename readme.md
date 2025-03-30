@@ -1,5 +1,3 @@
-I'll update the README to provide a more comprehensive explanation of the code and how the system works.
-
 # Buddy Voice
 
 A voice-based AI assistant that leverages:
@@ -9,6 +7,9 @@ A voice-based AI assistant that leverages:
 3. OpenAI-Whisper for accurate voice transcription
 4. LLM backend for generating intelligent responses
 5. Text-to-Speech (TTS) for natural-sounding replies
+6. Tool calling capabilities:
+   - to play music via [youtube-music-api](https://pypi.org/project/ytmusicapi/)
+   - to describe image captured by camera _(uses gemma3)_
 
 ## Setup and Installation
 
@@ -23,6 +24,13 @@ python -m venv buddy-voice
 ./buddy-voice/Scripts/activate
 # On macOS/Linux:
 source buddy-voice/bin/activate
+```
+
+### Models Installation
+
+```bash
+ollama pull llama3.2
+ollama pull gemma3
 ```
 
 ### Package Installation
@@ -42,7 +50,7 @@ python download.py
 python main.py
 
 # Run with custom parameters
-python main.py --wakeword "./custom_wakeword.onnx" --whisper "turbo" --llm "deepseek-r1" --system_prompt "I am deepseek, your personal assistant"
+python main.py --wakeword "./custom_wakeword.onnx" --whisper "turbo" --llm "llama3.2"
 ```
 
 ## How It Works

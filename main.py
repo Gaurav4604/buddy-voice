@@ -57,7 +57,7 @@ def main():
             else:
                 # conversation loop
                 print("Recording speech in conversation mode...")
-                recorded_audio = input_processor.record_with_vad(inactivity_sec=2)
+                recorded_audio = input_processor.record_with_vad(inactivity_sec=1.5)
                 if recorded_audio.size == 0:
                     print("No audio recorded. Ending conversation.")
                     wake_word_required = True

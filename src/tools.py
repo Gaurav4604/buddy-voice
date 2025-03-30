@@ -106,7 +106,7 @@ def play_music(query: str) -> None:
             break
 
 
-def capture_image_and_describe() -> str:
+def capture_image_and_describe(question_for_image: str) -> str:
     """
     Use the front-facing camera to capture an image,
     and describe what the image contains
@@ -129,9 +129,9 @@ def capture_image_and_describe() -> str:
         remaining = max(int(countdown - elapsed) + 1, 0)
 
         # Overlay the countdown timer on the frame
-        font = cv2.FONT_HERSHEY_SIMPLEX
+        font = cv2.FONT_HERSHEY_SCRIPT_SIMPLEX
         cv2.putText(
-            frame, f"{remaining}", (50, 50), font, 1.5, (0, 0, 255), 4, cv2.LINE_AA
+            frame, f"{remaining}", (50, 50), font, 1.5, (0, 255, 0), 4, cv2.LINE_AA
         )
 
         # Show the camera preview window
@@ -163,7 +163,7 @@ def capture_image_and_describe() -> str:
         messages=[
             {
                 "role": "user",
-                "content": "describe what is present in this image in 2 lines",
+                "content": f"describe what is present in this image, focus on answering the following question: {question_for_image}",
                 "images": ["temp.jpg"],
             }
         ],
@@ -174,6 +174,8 @@ def capture_image_and_describe() -> str:
     image_description = ImageDescription.model_validate_json(
         res.message.content
     ).description
+
+    print(image_description)
 
     # Delete the temporary image file
     if os.path.exists("temp.jpg"):
